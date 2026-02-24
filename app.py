@@ -35,24 +35,27 @@ def show_target_distribution(df):
 
 def show_country_gender(df):
     st.header("Categorical breakdowns")
-    c1, c2 = st.columns(2)
-    with c1:
-        fig = px.pie(df, names="country", title="Country distribution")
-        st.plotly_chart(fig, width="stretch")
-    with c2:
-        fig = px.histogram(df, x="gender", color="gender", title="Gender count")
-        st.plotly_chart(fig, width="stretch")
+    try:
+        c1, c2 = st.columns(2)
+        with c1:
+            fig = px.pie(df, names="country", title="Country distribution")
+            st.plotly_chart(fig, width="stretch")
+        with c2:
+            fig = px.histogram(df, x="gender", color="gender", title="Gender count")
+            st.plotly_chart(fig, width="stretch")
 
-    st.subheader("Churn by category")
-    c3, c4 = st.columns(2)
-    with c3:
-        ct = pd.crosstab(df["country"], df["churn"])
-        fig = px.bar(ct, barmode="stack", title="Churn by Country")
-        st.plotly_chart(fig, width="stretch")
-    with c4:
-        ct2 = pd.crosstab(df["gender"], df["churn"])
-        fig = px.bar(ct2, barmode="stack", title="Churn by Gender")
-        st.plotly_chart(fig, width="stretch")
+        st.subheader("Churn by category")
+        c3, c4 = st.columns(2)
+        with c3:
+            ct = pd.crosstab(df["country"], df["churn"])
+            fig = px.bar(ct, barmode="stack", title="Churn by Country")
+            st.plotly_chart(fig, width="stretch")
+        with c4:
+            ct2 = pd.crosstab(df["gender"], df["churn"])
+            fig = px.bar(ct2, barmode="stack", title="Churn by Gender")
+            st.plotly_chart(fig, width="stretch")
+    except Exception as e:
+        st.error(f"Error rendering categorical plots. Try refreshing or using Desktop view.")
 
 
 def show_numeric_histograms(df):
@@ -71,20 +74,28 @@ def show_numeric_histograms(df):
 
     for col in sel:
         if chart_type == "Histogram":
-            fig = px.histogram(dff, x=col, nbins=50, title=col)
-            st.plotly_chart(fig, width="stretch")
+            try:
+                fig = px.histogram(dff, x=col, nbins=50, title=col)
+                st.plotly_chart(fig, width="stretch")
+            except Exception as e:
+                st.warning(f"Could not render histogram for {col}. Try: 1) Fewer samples, 2) Pie chart mode")
         else:
             # bin numeric values and show pie of bin counts
-            bins = st.slider(f"Bins for {col}", 2, 50, 8, key=f"bins_{col}")
             ser = dff[col].dropna()
             if ser.empty:
                 st.write(f"No data to plot for {col}")
                 continue
-            binned = pd.cut(ser, bins=bins)
-            counts = binned.value_counts().sort_index()
-            labels = [f"{interval.left:.2f}–{interval.right:.2f}" for interval in counts.index]
-            fig = px.pie(values=counts.values, names=labels, title=f"{col} (binned)")
-            st.plotly_chart(fig, width="stretch")
+            # limit bins to sample size
+            max_bins = min(50, max(2, len(ser) // 10))
+            bins = st.slider(f"Bins for {col}", 2, max_bins, min(8, max_bins), key=f"bins_{col}")
+            try:
+                binned = pd.cut(ser, bins=bins)
+                counts = binned.value_counts().sort_index()
+                labels = [f"{interval.left:.2f}–{interval.right:.2f}" for interval in counts.index]
+                fig = px.pie(values=counts.values, names=labels, title=f"{col} (binned)")
+                st.plotly_chart(fig, width="stretch")
+            except Exception as e:
+                st.warning(f"Could not bin {col} with {bins} bins. Try fewer bins or increase sample size.")
 
 
 def show_correlation(df):
