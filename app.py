@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve, precision_recall_fscore_support
 
 st.set_page_config(page_title="Churn Prediction", layout="wide")
@@ -123,8 +123,7 @@ def train_and_show(df, auto_run: bool = False):
     features = st.multiselect("Features", default_features, default=default_features)
 
     test_size = st.sidebar.slider("Test size", 0.1, 0.5, 0.2)
-    n_estimators = st.sidebar.slider("n_estimators (faster on mobile)", 10, 200, 50)
-    max_depth = st.sidebar.slider("max_depth", 1, 30, 5)
+    reg_strength = st.sidebar.slider("Regularization (C)", 0.01, 10.0, 1.0)
 
     do_train = False
     if auto_run:
@@ -136,7 +135,7 @@ def train_and_show(df, auto_run: bool = False):
         X_train, X_test, y_train, y_test = train_test_split(
             X[features], y, test_size=test_size, random_state=42
         )
-        model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+        model = LogisticRegression(C=reg_strength, max_iter=1000, random_state=42)
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
         probs = model.predict_proba(X_test)[:, 1]
@@ -167,9 +166,10 @@ def train_and_show(df, auto_run: bool = False):
         st.subheader("Per-class metrics")
         st.dataframe(pr_df)
 
-        fi = pd.Series(model.feature_importances_, index=features).sort_values(ascending=False)
-        st.subheader("Feature importances")
-        st.bar_chart(fi)
+        # Feature coefficients
+        coef = pd.Series(model.coef_[0], index=features).sort_values(ascending=False)
+        st.subheader("Feature coefficients")
+        st.bar_chart(coef)
 
 
 def main():
