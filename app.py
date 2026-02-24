@@ -6,6 +6,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve, precision_recall_fscore_support
 
+st.set_page_config(page_title="Churn Prediction", layout="wide")
+
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "Customer_churn_prediction.csv")
 
@@ -57,11 +59,11 @@ def show_numeric_histograms(df):
     st.header("Numeric distributions")
     import pandas.api.types as ptypes
     numeric = [c for c in df.columns if ptypes.is_numeric_dtype(df[c]) and c not in ["customer_id"]]
-    sel = st.multiselect("Pick numeric columns to plot", numeric, default=numeric[:4])
+    sel = st.multiselect("Pick numeric columns to plot", numeric, default=numeric[:2])
     # chart type: histogram or pie (binned)
     chart_type = st.radio("Chart type", ["Histogram", "Pie (binned)"], horizontal=True)
-    # allow sampling to speed up plotting
-    sample_n = st.slider("Sample rows for numeric plots (0 = use all)", 0, 50000, 5000)
+    # allow sampling to speed up plotting (default 2000 for mobile)
+    sample_n = st.slider("Sample rows for numeric plots (0 = use all)", 0, 50000, 2000)
     if sample_n and sample_n < len(df):
         dff = df.sample(sample_n, random_state=42)
     else:
@@ -73,7 +75,7 @@ def show_numeric_histograms(df):
             st.plotly_chart(fig, width="stretch")
         else:
             # bin numeric values and show pie of bin counts
-            bins = st.slider(f"Bins for {col}", 2, 50, 10, key=f"bins_{col}")
+            bins = st.slider(f"Bins for {col}", 2, 50, 8, key=f"bins_{col}")
             ser = dff[col].dropna()
             if ser.empty:
                 st.write(f"No data to plot for {col}")
@@ -87,12 +89,15 @@ def show_numeric_histograms(df):
 
 def show_correlation(df):
     st.header("Correlation matrix")
-    corr = df.select_dtypes(include=["number"]).corr()
-    if corr.empty:
-        st.write("No numeric columns to compute correlation.")
-        return
-    fig = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation matrix")
-    st.plotly_chart(fig, width="stretch")
+    if st.checkbox("Show correlation heatmap (may be slow on mobile)", value=False):
+        corr = df.select_dtypes(include=["number"]).corr()
+        if corr.empty:
+            st.write("No numeric columns to compute correlation.")
+            return
+        fig = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation matrix")
+        st.plotly_chart(fig, width="stretch")
+    else:
+        st.write("Click the checkbox above to load the correlation matrix.")
 
 
 def train_and_show(df, auto_run: bool = False):
@@ -107,8 +112,8 @@ def train_and_show(df, auto_run: bool = False):
     features = st.multiselect("Features", default_features, default=default_features)
 
     test_size = st.sidebar.slider("Test size", 0.1, 0.5, 0.2)
-    n_estimators = st.sidebar.slider("n_estimators", 10, 200, 100)
-    max_depth = st.sidebar.slider("max_depth", 1, 30, 7)
+    n_estimators = st.sidebar.slider("n_estimators (faster on mobile)", 10, 200, 50)
+    max_depth = st.sidebar.slider("max_depth", 1, 30, 5)
 
     do_train = False
     if auto_run:
@@ -159,6 +164,9 @@ def train_and_show(df, auto_run: bool = False):
 def main():
     st.title("Customer Churn — Interactive Dashboard")
     st.write("A simple Streamlit dashboard for EDA and quick modeling on the churn dataset.")
+    
+    st.sidebar.markdown("### 📱 Mobile Tip")
+    st.sidebar.write("For faster loading on mobile, reduce sample size in numeric plots and skip the correlation matrix.")
 
     df = load_data()
 
